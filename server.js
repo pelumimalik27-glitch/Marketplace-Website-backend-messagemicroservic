@@ -2,6 +2,7 @@ const path = require('path');
 const dns = require('dns');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
+const cors = require('cors');
 const {createProxyMiddleware} = require('http-proxy-middleware');
 const  connectDB = require('./database/dbconnection');
 const { emailRouter } = require('./router/email.router');
@@ -16,6 +17,43 @@ try {
 }
 
 const app = express();
+const defaultOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+];
+const configuredOrigins = String(process.env.CORS_ORIGINS || process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...configuredOrigins]));
+const isLocalOrigin = (origin = "") =>
+  /^http:\/\/(localhost|127\.0\.0\.1):\d+$/i.test(String(origin || "").trim());
+const isTrustedPublicOrigin = (origin = "") => {
+  const value = String(origin || "").trim();
+  return (
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(value) ||
+    /^https:\/\/[a-z0-9-]+\.onrender\.com$/i.test(value)
+  );
+};
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    if (isLocalOrigin(origin) || isTrustedPublicOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 const PORT = Number(process.env.PORT) || 7000;
